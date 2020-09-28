@@ -12,9 +12,9 @@
 
 using namespace std;
 
-size_t chunkSize = 50 * 1024 * 1024;
+size_t chunkSize = 64 * 1024 * 1024;
 
-bool operator==(const timespec &t1, const timespec &t2) {
+inline bool operator==(const timespec &t1, const timespec &t2) {
 	if (t1.tv_sec != t2.tv_sec)
 		return false;
 	if (t1.tv_nsec != t2.tv_nsec)
@@ -22,7 +22,7 @@ bool operator==(const timespec &t1, const timespec &t2) {
 	return true;
 }
 
-bool operator!=(const timespec &t1, const timespec &t2) {
+inline bool operator!=(const timespec &t1, const timespec &t2) {
 	return !(t1 == t2);
 }
 
@@ -41,7 +41,7 @@ bool copyFileContent(const char *pathIn, const struct stat &sin,
 	// Check if an input of a wrong type exists -> has to be removed!
 	if (outputExists && sin.st_mode & S_IFMT != sout.st_mode & S_IFMT) {
 		filesystem::remove_all(pathOut);
-		outputExists = lstat(pathOut, &sout);
+		outputExists = lstat(pathOut, &sout) == 0;
 	}
 
 	// Check for file type
@@ -210,7 +210,6 @@ void copyTree(const char *pathIn, const char *pathOut) {
 	bool isDir = copyItem(pathIn, pathOut);
 
 	if (isDir) {
-
 		// Then copy all items in the directory
 		filesystem::path pIn(pathIn);
 		filesystem::path pOut(pathOut);

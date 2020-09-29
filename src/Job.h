@@ -6,18 +6,13 @@
 #include <sys/stat.h>
 #include <set>
 #include <cstring>
-#include <omp.h>
+#include <cassert>
 
 /**
  * Represents a filesystem item that should be copied.
  * File, directory or symlink.
  */
 struct Job {
-private:
-	/// OMP lock
-	omp_lock_t lock;
-
-public:
 	/// Path to the input.
 	std::filesystem::path SourcePath;
 	/// Path to the destination.
@@ -30,7 +25,7 @@ public:
 
 	/// Copy state only reflects position in the pipeline, not errors.
 	enum struct CopyState {
-		OPEN, SCHEDULED, READ, WRITTEN
+		OPEN, SCHEDULED, DONE
 	};
 
 	/// State of the initialization
@@ -73,23 +68,34 @@ public:
 	} Log;
 
 	Job() :
-			InitState(CopyState::OPEN) {
+			InitState(CopyState::OPEN), AttribState(CopyState::OPEN) {
 		memset(&SourceStat, 0, sizeof(SourceStat));
 		memset(&DestStat, 0, sizeof(DestStat));
-		omp_init_lock(&lock);
-	}
-
-	~Job() {
-		omp_destroy_lock(&lock);
-	}
-
-	void Lock() {
-		omp_set_lock(&lock);
-	}
-
-	void Unlock() {
-		omp_unset_lock(&lock);
 	}
 };
+
+inline void createDependency(Job *dependent, Job *independent) {
+	assert(
+			dependent->FinishDirDependencies.find(independent)
+					== dependent->FinishDirDependencies.end());
+	assert(
+			independent->Dependents.find(dependent)
+					== independent->Dependents.end());
+
+	dependent->FinishDirDependencies.insert(independent);
+	independent->Dependents.insert(dependent);
+}
+
+inline void removeDependency(Job *dependent, Job *independent) {
+	assert(
+			dependent->FinishDirDependencies.find(independent)
+					!= dependent->FinishDirDependencies.end());
+	assert(
+			independent->Dependents.find(dependent)
+					!= independent->Dependents.end());
+
+	dependent->FinishDirDependencies.erase(independent);
+	independent->Dependents.erase(dependent);
+}
 
 #endif /* SRC_JOB_H_ */

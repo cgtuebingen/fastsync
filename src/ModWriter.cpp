@@ -30,6 +30,8 @@ void ModWriter::run() {
 	// Read elements from the input and put them to the output
 	while (!stop) {
 		Task *task = In->PopFront();
+		if (task == nullptr)
+			continue;
 
 		if (task->Type == Task::TaskType::INIT) {
 			// Get stat of what is already there
@@ -47,11 +49,11 @@ void ModWriter::run() {
 							&task->ItsJob->DestStat);
 				}
 				// Check if output has to be updated
-				if (S_ISREG(task->ItsJob->DestStat.st_mode)
-						&& (task->ItsJob->DestStat.st_size
+				if (task->ItsJob->DestStat.st_ino == 0
+						|| task->ItsJob->DestStat.st_size
 								!= task->ItsJob->SourceStat.st_size
-								|| task->ItsJob->DestStat.st_mtim
-										!= task->ItsJob->SourceStat.st_mtim)) {
+						|| task->ItsJob->DestStat.st_mtim
+								!= task->ItsJob->SourceStat.st_mtim) {
 					ofstream fout(task->ItsJob->DestPath.c_str(),
 							ios_base::binary);
 					if (task->ItsJob->SourceStat.st_size > 0) {
@@ -63,11 +65,8 @@ void ModWriter::run() {
 				}
 			} else if (S_ISDIR(task->ItsJob->SourceStat.st_mode)) {
 				// Check if wrong output has to be deleted
-				if (task->ItsJob->DestStat.st_ino != 0
-						&& (!S_ISDIR(
-								task->ItsJob->DestStat.st_mode
-										|| task->ItsJob->SourcePath.filename()
-												!= task->ItsJob->DestPath.filename()))) {
+				if (task->ItsJob->DestStat.st_ino
+						!= 0&& !S_ISDIR(task->ItsJob->DestStat.st_mode)) {
 					std::error_code ec;
 					filesystem::remove_all(task->ItsJob->DestPath, ec);
 					if (ec.value() != 0)
@@ -76,9 +75,7 @@ void ModWriter::run() {
 					lstat(task->ItsJob->DestPath.c_str(),
 							&task->ItsJob->DestStat);
 				}
-				if (!S_ISDIR(task->ItsJob->DestStat.st_mode)
-						|| task->ItsJob->SourcePath.filename()
-								!= task->ItsJob->DestPath.filename()) {
+				if (task->ItsJob->DestStat.st_ino == 0) {
 					task->ItsJob->Log.ErrorCreateDest = mkdir(
 							task->ItsJob->DestPath.c_str(),
 							task->ItsJob->SourceStat.st_mode) != 0;
@@ -116,7 +113,6 @@ void ModWriter::run() {
 					}
 				}
 			}
-			task->ItsJob->InitState = Job::CopyState::WRITTEN;
 		} else if (task->Type == Task::TaskType::CHUNK) {
 			if (!task->data.empty()) {
 				size_t startPos = task->ChunkIdx * chunkSize;
@@ -129,7 +125,6 @@ void ModWriter::run() {
 						!fout.good();
 				fout.close();
 			}
-			task->ItsJob->ChunkState[task->ChunkIdx] = Job::CopyState::WRITTEN;
 		} else if (task->Type == Task::TaskType::ATTRIBUTES) {
 			// Check if there is a valid input stat
 			if (task->ItsJob->SourceStat.st_ino != 0) {
@@ -190,7 +185,6 @@ void ModWriter::run() {
 					}
 				}
 			}
-			task->ItsJob->AttribState = Job::CopyState::WRITTEN;
 		}
 
 		Out->PushBack(task);

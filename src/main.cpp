@@ -183,9 +183,10 @@ void copyTree(const char *pathIn, const char *pathOut) {
 }
 
 int main(int argc, char **argv) {
-	copyTree("test/filein", "test/fileout");
-	copyTree("test/dirin", "test/dirout");
-	copyTree("test/linkin", "test/linkout");
+	if (argc != 3) {
+		cerr << "Usage: ./fastsync SOURCE DEST" << endl;
+		return -1;
+	}
 
-	copyTree("test/dirfilledin", "test/dirfilledout");
+	copyTree(argv[1], argv[2]);
 }

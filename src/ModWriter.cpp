@@ -5,7 +5,6 @@
 #include "ThreadsafeBuffer.h"
 
 #include <sys/stat.h>
-#include <fstream>
 #include <fcntl.h>
 #include <unistd.h>
 #include <filesystem>
@@ -54,14 +53,15 @@ void ModWriter::run() {
 								!= task->ItsJob->SourceStat.st_size
 						|| task->ItsJob->DestStat.st_mtim
 								!= task->ItsJob->SourceStat.st_mtim) {
-					ofstream fout(task->ItsJob->DestPath.c_str(),
-							ios_base::binary);
+					int fd = open(task->ItsJob->DestPath.c_str(),
+							O_WRONLY | O_CREAT);
 					if (task->ItsJob->SourceStat.st_size > 0) {
-						fout.seekp(task->ItsJob->SourceStat.st_size - 1);
-						fout.write("", 1);
+						lseek(fd, task->ItsJob->SourceStat.st_size - 1,
+						SEEK_SET);
+						task->ItsJob->Log.ErrorCreateDest = write(fd, "", 1)
+								== 0;
 					}
-					task->ItsJob->Log.ErrorCreateDest = !fout.good();
-					fout.close();
+					close(fd);
 				}
 			} else if (S_ISDIR(task->ItsJob->SourceStat.st_mode)) {
 				// Check if wrong output has to be deleted
@@ -117,13 +117,11 @@ void ModWriter::run() {
 			if (!task->data.empty()) {
 				size_t startPos = task->ChunkIdx * chunkSize;
 				size_t currentChunkSize = task->data.size();
-				ofstream fout(task->ItsJob->DestPath,
-						ios_base::binary | ios_base::in);
-				fout.seekp(startPos);
-				fout.write(&task->data[0], currentChunkSize);
-				task->ItsJob->Log.ErrorWriteChunk[task->ChunkIdx] =
-						!fout.good();
-				fout.close();
+				int fd = open(task->ItsJob->DestPath.c_str(), O_WRONLY);
+				lseek(fd, startPos, SEEK_SET);
+				task->ItsJob->Log.ErrorWriteChunk[task->ChunkIdx] = write(fd,
+						&task->data[0], currentChunkSize) == 0;
+				close(fd);
 			}
 		} else if (task->Type == Task::TaskType::ATTRIBUTES) {
 			// Check if there is a valid input stat

@@ -5,7 +5,6 @@
 #include "ThreadsafeBuffer.h"
 
 #include <sys/stat.h>
-#include <fstream>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -59,12 +58,13 @@ void ModReader::run() {
 			size_t currentChunkSize = min(chunkSize,
 					task->ItsJob->SourceStat.st_size - startPos);
 
-			ifstream fin(task->ItsJob->SourcePath.c_str(), ios_base::binary);
-			fin.seekg(startPos);
+			int fd = open(task->ItsJob->SourcePath.c_str(),
+					O_RDONLY | O_NOFOLLOW);
+			lseek(fd, startPos, SEEK_SET);
 			task->data.resize(currentChunkSize);
-			fin.read(&task->data[0], currentChunkSize);
-			task->ItsJob->Log.ErrorReadChunk[task->ChunkIdx] = !fin.good();
-			fin.close();
+			task->ItsJob->Log.ErrorReadChunk[task->ChunkIdx] = read(fd,
+					&task->data[0], currentChunkSize) == 0;
+			close(fd);
 		} else if (task->Type == Task::TaskType::ATTRIBUTES) {
 			// Attributes were already read during init stat
 			// -> Nothing to do

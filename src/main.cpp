@@ -80,6 +80,7 @@ void copyTree(const char *pathIn, const char *pathOut) {
 			Task *task = TasksWritten.PopFront();
 			if (task->Type == Task::TaskType::INIT) {
 				cout << "I " << task->ItsJob->SourcePath << endl;
+
 				// If this was a directory task
 				if (S_ISDIR(task->ItsJob->SourceStat.st_mode)) {
 					// Start jobs for subdirectories and create dependencies
@@ -95,6 +96,23 @@ void copyTree(const char *pathIn, const char *pathOut) {
 					}
 				}
 				task->ItsJob->InitState = Job::CopyState::DONE;
+
+				// For links and files, check if copy has to continue at all
+				if ((S_ISREG(task->ItsJob->DestStat.st_mode)
+						|| S_ISLNK(task->ItsJob->DestStat.st_mode))
+						&& task->ItsJob->DestStat.st_size
+								== task->ItsJob->SourceStat.st_size
+						&& task->ItsJob->DestStat.st_mtim.tv_sec
+								== task->ItsJob->SourceStat.st_mtim.tv_sec) {
+					// Remove this job's dependencies
+					while (task->ItsJob->Dependents.size() > 0) {
+						removeDependency(*task->ItsJob->Dependents.begin(),
+								task->ItsJob);
+					}
+
+					jobsOpen.remove(task->ItsJob);
+					delete task->ItsJob;
+				}
 			}
 			if (task->Type == Task::TaskType::CHUNK) {
 				cout << "C" << task->ChunkIdx << " " << task->ItsJob->SourcePath
@@ -133,9 +151,11 @@ void copyTree(const char *pathIn, const char *pathOut) {
 			if (job->InitState == Job::CopyState::DONE) {
 				bool openChunkFound = false;
 				for (size_t c = 0; c < job->ChunkState.size(); c++) {
+					bool prevChunksWritten = allChunksWritten;
 					if (job->ChunkState[c] != Job::CopyState::DONE)
 						allChunksWritten = false;
-					if (job->ChunkState[c] == Job::CopyState::OPEN) {
+					if (prevChunksWritten
+							&& job->ChunkState[c] == Job::CopyState::OPEN) {
 						job->ChunkState[c] = Job::CopyState::SCHEDULED;
 						TasksOpen.PushBack(
 								new Task(Task::TaskType::CHUNK, job, c));

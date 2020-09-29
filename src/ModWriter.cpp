@@ -51,16 +51,12 @@ void ModWriter::run() {
 				if (task->ItsJob->DestStat.st_ino == 0
 						|| task->ItsJob->DestStat.st_size
 								!= task->ItsJob->SourceStat.st_size
-						|| task->ItsJob->DestStat.st_mtim
-								!= task->ItsJob->SourceStat.st_mtim) {
+						|| task->ItsJob->DestStat.st_mtim.tv_sec
+								!= task->ItsJob->SourceStat.st_mtim.tv_sec) {
 					int fd = open(task->ItsJob->DestPath.c_str(),
-							O_WRONLY | O_CREAT);
-					if (task->ItsJob->SourceStat.st_size > 0) {
-						lseek(fd, task->ItsJob->SourceStat.st_size - 1,
-						SEEK_SET);
-						task->ItsJob->Log.ErrorCreateDest = write(fd, "", 1)
-								== 0;
-					}
+					O_WRONLY | O_CREAT | O_TRUNC,
+							task->ItsJob->SourceStat.st_mode);
+					// Don't init sparse file: Quobyte is bad on this!
 					close(fd);
 				}
 			} else if (S_ISDIR(task->ItsJob->SourceStat.st_mode)) {
@@ -83,14 +79,11 @@ void ModWriter::run() {
 			} else if (S_ISLNK(task->ItsJob->SourceStat.st_mode)) {
 				// Check if wrong output has to be deleted
 				if (task->ItsJob->DestStat.st_ino != 0
-						&& (!S_ISLNK(
-								task->ItsJob->DestStat.st_mode
-										|| task->ItsJob->SourcePath.filename()
-												!= task->ItsJob->DestPath.filename()
-										|| task->ItsJob->SourceStat.st_size
-												!= task->ItsJob->DestStat.st_size
-										|| task->ItsJob->SourceStat.st_mtim
-												!= task->ItsJob->DestStat.st_mtim))) {
+						&& (!S_ISLNK(task->ItsJob->DestStat.st_mode)
+								|| task->ItsJob->SourceStat.st_size
+										!= task->ItsJob->DestStat.st_size
+								|| task->ItsJob->SourceStat.st_mtim.tv_sec
+										!= task->ItsJob->DestStat.st_mtim.tv_sec)) {
 					std::error_code ec;
 					filesystem::remove_all(task->ItsJob->DestPath, ec);
 					if (ec.value() != 0)
@@ -101,11 +94,11 @@ void ModWriter::run() {
 				}
 
 				// Check if link has to be created
-				if (!S_ISLNK(task->ItsJob->DestStat.st_mode)
+				if (task->ItsJob->DestStat.st_ino == 0
 						|| task->ItsJob->DestStat.st_size
 								!= task->ItsJob->SourceStat.st_size
-						|| task->ItsJob->DestStat.st_mtim
-								!= task->ItsJob->SourceStat.st_mtim) {
+						|| task->ItsJob->DestStat.st_mtim.tv_sec
+								!= task->ItsJob->SourceStat.st_mtim.tv_sec) {
 					if (task->data.size() > 0) {
 						task->ItsJob->Log.ErrorCreateDest = symlinkat(
 								&task->data[0], AT_FDCWD,
@@ -117,8 +110,8 @@ void ModWriter::run() {
 			if (!task->data.empty()) {
 				size_t startPos = task->ChunkIdx * chunkSize;
 				size_t currentChunkSize = task->data.size();
-				int fd = open(task->ItsJob->DestPath.c_str(), O_WRONLY);
-				lseek(fd, startPos, SEEK_SET);
+				int fd = open(task->ItsJob->DestPath.c_str(),
+				O_WRONLY | O_APPEND);
 				task->ItsJob->Log.ErrorWriteChunk[task->ChunkIdx] = write(fd,
 						&task->data[0], currentChunkSize) == 0;
 				close(fd);
@@ -149,11 +142,13 @@ void ModWriter::run() {
 						}
 					}
 
+					// fetch stats again which could have changed due to deleting content
+					lstat(task->ItsJob->DestPath.c_str(),
+							&task->ItsJob->DestStat);
+
 					// Preserve timestamps
-					if (task->ItsJob->SourceStat.st_mtim
-							!= task->ItsJob->DestStat.st_mtim
-							|| task->ItsJob->SourceStat.st_atim
-									!= task->ItsJob->DestStat.st_atim) {
+					if (task->ItsJob->SourceStat.st_mtim.tv_sec
+							!= task->ItsJob->DestStat.st_mtim.tv_sec) {
 						struct timespec times[2];
 						times[0] = task->ItsJob->SourceStat.st_atim;
 						times[1] = task->ItsJob->SourceStat.st_mtim;

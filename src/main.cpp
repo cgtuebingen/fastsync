@@ -203,10 +203,19 @@ void copyTree(const char *pathIn, const char *pathOut) {
 }
 
 int main(int argc, char **argv) {
-	if (argc != 3) {
-		cerr << "Usage: ./fastsync SOURCE DEST" << endl;
+	if (argc < 3) {
+		cerr
+				<< "Usage: ./fastsync SOURCE DEST [#READERS [#WRITERS [CHUNK_SIZE_MB]]]"
+				<< endl;
 		return -1;
 	}
+
+	if (argc >= 3)
+		readerThreads = atoi(argv[3]);
+	if (argc >= 4)
+		writerThreads = atoi(argv[4]);
+	if (argc >= 5)
+		chunkSize = atoi(argv[5]) * 1024 * 1024;
 
 	copyTree(argv[1], argv[2]);
 }

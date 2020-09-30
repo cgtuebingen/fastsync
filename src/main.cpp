@@ -15,7 +15,7 @@
 #include <cerrno>
 #include <cstring>
 #include <filesystem>
-#include <list>
+#include <unordered_set>
 
 using namespace std;
 
@@ -66,20 +66,21 @@ void copyTree(const char *pathIn, const char *pathOut) {
 	// == Processing loop ==
 
 	// All jobs that are currently in flight
-	std::list<Job*> jobsOpen;
+	std::unordered_set<Job*> jobsOpen;
 
 	// Insert root as first open job
 	Job *rootJob = new Job();
 	rootJob->SourcePath = pathIn;
 	rootJob->DestPath = pathOut;
-	jobsOpen.push_back(rootJob);
+	jobsOpen.insert(rootJob);
 
 	while (jobsOpen.size() > 0) {
 		// Try to create new jobs from finished tasks
 		if (TasksWritten.Size() > 0) {
 			Task *task = TasksWritten.PopFront();
 			if (task->Type == Task::TaskType::INIT) {
-				cout << "I " << task->ItsJob->SourcePath << endl;
+				cout << jobsOpen.size() << " I " << task->ItsJob->SourcePath
+						<< endl;
 
 				// If this was a directory task
 				if (S_ISDIR(task->ItsJob->SourceStat.st_mode)) {
@@ -92,7 +93,7 @@ void copyTree(const char *pathIn, const char *pathOut) {
 						subJob->DestPath = task->ItsJob->DestPath
 								/ entry.path().filename();
 						createDependency(task->ItsJob, subJob);
-						jobsOpen.push_back(subJob);
+						jobsOpen.insert(subJob);
 					}
 				}
 				task->ItsJob->InitState = Job::CopyState::DONE;
@@ -110,17 +111,18 @@ void copyTree(const char *pathIn, const char *pathOut) {
 								task->ItsJob);
 					}
 
-					jobsOpen.remove(task->ItsJob);
+					jobsOpen.erase(task->ItsJob);
 					delete task->ItsJob;
 				}
 			}
 			if (task->Type == Task::TaskType::CHUNK) {
-				cout << "C" << task->ChunkIdx << " " << task->ItsJob->SourcePath
-						<< endl;
+				cout << jobsOpen.size() << " C" << task->ChunkIdx << " "
+						<< task->ItsJob->SourcePath << endl;
 				task->ItsJob->ChunkState[task->ChunkIdx] = Job::CopyState::DONE;
 			}
 			if (task->Type == Task::TaskType::ATTRIBUTES) {
-				cout << "A " << task->ItsJob->SourcePath << endl;
+				cout << jobsOpen.size() << " A " << task->ItsJob->SourcePath
+						<< endl;
 				// Remove this job's dependencies
 				while (task->ItsJob->Dependents.size() > 0) {
 					removeDependency(*task->ItsJob->Dependents.begin(),
@@ -129,7 +131,7 @@ void copyTree(const char *pathIn, const char *pathOut) {
 				//Mark attributes as finished (not really necessary because job will be deleted immediatelly)
 				task->ItsJob->AttribState = Job::CopyState::DONE;
 				// Delete the job
-				jobsOpen.remove(task->ItsJob);
+				jobsOpen.erase(task->ItsJob);
 				delete task->ItsJob;
 			}
 

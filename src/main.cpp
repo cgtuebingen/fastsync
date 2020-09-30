@@ -210,11 +210,11 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-	if (argc >= 3)
-		readerThreads = atoi(argv[3]);
 	if (argc >= 4)
-		writerThreads = atoi(argv[4]);
+		readerThreads = atoi(argv[3]);
 	if (argc >= 5)
+		writerThreads = atoi(argv[4]);
+	if (argc >= 6)
 		chunkSize = atoi(argv[5]) * 1024 * 1024;
 
 	copyTree(argv[1], argv[2]);

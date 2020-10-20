@@ -65,8 +65,30 @@ void copyTree(const char *pathIn, const char *pathOut) {
 
 	// == Processing loop ==
 
+	struct JobPtrCompare {
+		bool operator() (const Job* lhs, const Job* rhs) const {
+			// Special case: If nullptrs are involved, they are always smaller
+			if(lhs == nullptr && rhs == nullptr)
+				return false;
+			if(lhs == nullptr)
+				return true;
+			if(rhs == nullptr)
+				return false;
+
+			// Both are not nullptr -> sequence id is most significant
+			if(lhs->SourcePath < rhs->SourcePath)
+				return true;
+			if(lhs->SourcePath >= rhs->SourcePath)
+				return false;
+
+			if(lhs < rhs)
+				return true;
+			return false;
+		}
+	};
+
 	// All jobs that are currently in flight
-	std::unordered_set<Job*> jobsOpen;
+	std::set<Job*, JobPtrCompare> jobsOpen;
 
 	// Insert root as first open job
 	Job *rootJob = new Job();
@@ -104,7 +126,11 @@ void copyTree(const char *pathIn, const char *pathOut) {
 						&& task->ItsJob->DestStat.st_size
 								== task->ItsJob->SourceStat.st_size
 						&& task->ItsJob->DestStat.st_mtim.tv_sec
-								== task->ItsJob->SourceStat.st_mtim.tv_sec) {
+								== task->ItsJob->SourceStat.st_mtim.tv_sec
+						&& task->ItsJob->DestStat.st_uid
+								== task->ItsJob->SourceStat.st_uid
+						&& task->ItsJob->DestStat.st_gid
+								== task->ItsJob->SourceStat.st_gid) {
 					// Remove this job's dependencies
 					while (task->ItsJob->Dependents.size() > 0) {
 						removeDependency(*task->ItsJob->Dependents.begin(),

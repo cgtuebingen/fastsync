@@ -19,7 +19,7 @@ fastsync does not do this:
 * Copying hardlinks
 * Copy ACLs, extended file attributes or anything else that goes beyond old-fashioned UNIX attributes
 
-# Compilation
+# Building
 First clone this repository and cd into the cloned folder. Then run:
 ```bash
 mkdir build
@@ -28,7 +28,7 @@ cmake ../
 make
 ```
 
-# Usage
+# Using
 The compiled binary can be used with
 ```./fastsync SOURCE DEST [#READERS [#WRITERS [CHUNK_SIZE_MB]]]```
 * SOURCE is the source directory or file

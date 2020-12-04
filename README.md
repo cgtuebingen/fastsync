@@ -35,3 +35,14 @@ The compiled binary can be used with
 * DEST is the destination directory or file which should be made similar to source
 * CHUNK_SIZE_MB is the chunk size in MBs. If the used filesystem use sharding, set this to a multiple of the shard block size of all of them for best performance.
 Note that the amount of memory needed is in the order of 2 * max(#READERS, #WRITERS) * CHUNK_SIZE_MB.
+
+# Trying it out
+You may use the test.sh file to create a test folder in the current working directory which has some simple test cases in it.
+Run
+```bash
+./fastsync test/filein test/fileout
+./fastsync test/linkin test/linkout
+./fastsync test/dirin test/dirout
+./fastsync test/dirfilledin test/dirfilledout
+```
+and check if a diff tool of your choice if the \*in and \*out elements are similar.

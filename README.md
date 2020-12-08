@@ -34,6 +34,8 @@ The compiled binary can be used with
 ```./fastsync SOURCE DEST [#READERS [#WRITERS [CHUNK_SIZE_MB]]]```
 * SOURCE is the source directory or file
 * DEST is the destination directory or file which should be made similar to source
+* #READERS is the number of reader threads
+* #WRITERS is the number of writer threads
 * CHUNK_SIZE_MB is the chunk size in MBs. If the used filesystem use sharding, set this to a multiple of the shard block size of all of them for best performance.
 Note that the amount of memory needed is in the order of 2 * max(#READERS, #WRITERS) * CHUNK_SIZE_MB.
 

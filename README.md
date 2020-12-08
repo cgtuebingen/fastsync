@@ -1,6 +1,9 @@
 # fastsync
 Sync utility between single device and parallel filesystem.
 
+## Disclaimer
+Please note that fastsync is provided as-is. No responsibility is taken for eventual data loss or any other problems which might occur when running the software.
+
 ## Intended Use
 fastsync is intended to sync directories between two filesystems from which one or both might be parallel filesystems. Therefore, fastsync is able to read the source filesystem (which might be on a RAID0 with high sequential but low random read speed) from a single thread while writing to the target filesystem (which might be a massively parallel filesystem like GlusterFS on many devices and disks) with multiple threads.
 

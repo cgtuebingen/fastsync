@@ -43,7 +43,7 @@ The compiled binary can be used with
 Note that the amount of memory needed is in the order of 2 * max(#READERS, #WRITERS) * CHUNK_SIZE_MB.
 
 # Trying it out
-You may use the test.sh file to create a test folder in the current working directory which has some simple test cases in it.
+You may use the ```test.sh``` file to create a test folder in the current working directory which has some simple test cases in it.
 Run
 ```bash
 ./fastsync test/filein test/fileout
@@ -51,7 +51,7 @@ Run
 ./fastsync test/dirin test/dirout
 ./fastsync test/dirfilledin test/dirfilledout
 ```
-and check if a diff tool of your choice if the \*in and \*out elements are similar.
+and check with a diff tool of your choice if the \*in and \*out elements are similar.
 
 # Internals
 fastsync creates a Job for every filesystem entity (file, directory, link) and splits it up into several tasks: Creating the entity, copying a chunk of data and writing the attributes. A user defined number of reader and writer modules can be spawned in separate threads which execute the tasks. The main thread schedules Tasks to the readers and then to the writers, recursively creates new Jobs and Tasks for directory contents and tracks dependencies such that directories are only finished (unnecessary files removed, attributes set) after all content has been copied.
